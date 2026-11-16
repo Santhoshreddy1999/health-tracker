@@ -64,7 +64,8 @@
           "cameraPermission": "Allow camera access to photograph medical reports."
         }
       ],
-      "./plugins/withoutPushEntitlement.js"
+      "./plugins/withoutPushEntitlement.js",
+      "./plugins/withReleaseSigning.js"
     ]
   }
 }
