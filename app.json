@@ -1,0 +1,70 @@
+{
+  "expo": {
+    "name": "Health Tracker",
+    "slug": "health-tracker",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#6366F1"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.santhosh.healthtracker",
+      "infoPlist": {
+        "NSMotionUsageDescription": "Used to count your daily steps."
+      }
+    },
+    "android": {
+      "package": "com.santhosh.healthtracker",
+      "adaptiveIcon": {
+        "backgroundColor": "#6366F1",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png"
+      },
+      "permissions": [
+        "android.permission.ACTIVITY_RECOGNITION",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE"
+      ],
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "output": "single",
+      "name": "Health Tracker",
+      "shortName": "Health",
+      "themeColor": "#4F46E5",
+      "backgroundColor": "#F4F6FB"
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/android-icon-foreground.png",
+          "color": "#6366F1"
+        }
+      ],
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "Used to count your daily steps."
+        }
+      ],
+      "expo-sharing",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow access to photos to attach medical reports.",
+          "cameraPermission": "Allow camera access to photograph medical reports."
+        }
+      ],
+      "./plugins/withoutPushEntitlement.js"
+    ]
+  }
+}

@@ -1,0 +1,117 @@
+name: Build apps
+
+# Builds a sideloadable Android APK and an unsigned iOS .ipa on GitHub's free runners,
+# then publishes both (plus the web/PWA build) to a "latest" GitHub Release.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-apps-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npx expo prebuild -p android --no-install
+        env:
+          CI: 1
+      - name: Build release APK
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon
+        env:
+          NODE_ENV: production
+      - run: cp android/app/build/outputs/apk/release/app-release.apk HealthTracker-android.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: HealthTracker-android.apk
+
+  ios:
+    runs-on: macos-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx expo prebuild -p ios
+        env:
+          CI: 1
+      - name: Build unsigned .ipa
+        env:
+          NODE_ENV: production
+        run: |
+          WORKSPACE=$(ls -d ios/*.xcworkspace | head -1)
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" | tail -50
+          APP=$(ls -d build/Build/Products/Release-iphoneos/*.app | head -1)
+          mkdir -p Payload && cp -R "$APP" Payload/
+          zip -qry HealthTracker-ios-unsigned.ipa Payload
+          ls -lh HealthTracker-ios-unsigned.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa
+          path: HealthTracker-ios-unsigned.ipa
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx expo export --platform web
+      - run: cd dist && zip -qr ../HealthTracker-web-pwa.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-pwa
+          path: HealthTracker-web-pwa.zip
+
+  release:
+    needs: [android, ios, web]
+    if: ${{ !cancelled() && (needs.android.result == 'success' || needs.ios.result == 'success') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Health Tracker – latest build
+          prerelease: false
+          make_latest: true
+          body: |
+            Built from ${{ github.sha }}.
+            - **HealthTracker-android.apk**: open on your Android phone and install (allow "Install unknown apps").
+            - **HealthTracker-ios-unsigned.ipa**: sideload with Sideloadly or AltStore using a free Apple ID (re-sign every 7 days).
+            - **HealthTracker-web-pwa.zip**: static web app; host it anywhere and use Safari > Share > Add to Home Screen.
+          files: |
+            HealthTracker-android.apk
+            HealthTracker-ios-unsigned.ipa
+            HealthTracker-web-pwa.zip
